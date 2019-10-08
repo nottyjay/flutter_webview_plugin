@@ -1,6 +1,7 @@
 package com.flutter_webview_plugin;
 
 import android.annotation.TargetApi;
+import android.app.Activity;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.webkit.WebResourceRequest;
@@ -20,15 +21,18 @@ import java.util.regex.Pattern;
 public class BrowserClient extends WebViewClient {
     private Pattern invalidUrlPattern = null;
 
-    public BrowserClient() {
-        this(null);
+    private Activity activity;
+
+    public BrowserClient(Activity activity) {
+        this(null, activity);
     }
 
-    public BrowserClient(String invalidUrlRegex) {
+    public BrowserClient(String invalidUrlRegex, Activity activity) {
         super();
         if (invalidUrlRegex != null) {
             invalidUrlPattern = Pattern.compile(invalidUrlRegex);
         }
+        this.activity = activity;
     }
 
     public void updateInvalidUrlRegex(String invalidUrlRegex) {
@@ -67,6 +71,22 @@ public class BrowserClient extends WebViewClient {
         // returning true causes the current WebView to abort loading the URL,
         // while returning false causes the WebView to continue loading the URL as usual.
         String url = request.getUrl().toString();
+
+        if (!url.startsWith("http")) {
+            try {
+                // 以下固定写法
+                final Intent intent = new Intent(Intent.ACTION_VIEW,
+                        Uri.parse(url));
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                activity.startActivity(intent);
+            } catch (Exception e) {
+                // 防止没有安装的情况
+                e.printStackTrace();
+            }
+            return true;
+        }
+
         boolean isInvalid = checkInvalidUrl(url);
         Map<String, Object> data = new HashMap<>();
         data.put("url", url);
